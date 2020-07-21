@@ -1,4 +1,4 @@
-package chttp
+package ghttp
 
 import (
 	"bytes"

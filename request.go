@@ -1,10 +1,12 @@
-package chttp
+package ghttp
 
 import (
+	"crypto/tls"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type Request struct {
@@ -13,27 +15,38 @@ type Request struct {
 	expectedType string
 	uri          string
 	payload      interface{}
+	header       http.Header
+	timeout      time.Duration
 }
 
 func NewRequest() *Request {
-	request := &Request{}
-	request = request.ContentType("form")
+	request := &Request{
+		header: make(http.Header),
+	}
 	return request
 }
 
 func Init(method string) *Request {
-	request := &Request{}
-	request.ContentType("form").Method(method)
-	return request
+	return NewRequest().ContentType("form").Method(method).Timeout(8 * time.Second)
 }
 
 func Post(uri string, payload interface{}) *Request {
-	return Init("POST").Uri(uri).Body(payload)
+	return Init(POST).Uri(uri).Body(payload)
+}
+
+func Get(uri string, payload interface{}) *Request {
+	return Init(GET).Uri(uri).Body(payload)
 }
 
 func (r *Request) Send() (*Response, error) {
-
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: r.timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
 	params := ""
 
 	switch r.payload.(type) {
@@ -46,15 +59,26 @@ func (r *Request) Send() (*Response, error) {
 	default:
 	}
 	var response *Response
+	var request *http.Request
+	var err error
+	if r.method == GET {
+		request, err = http.NewRequest(r.method, r.uri+"?"+params, nil)
+	} else {
+		request, err = http.NewRequest(r.method, r.uri, strings.NewReader(params))
+	}
 
-	req, err := http.NewRequest(r.method, r.uri, strings.NewReader(params))
 	if err != nil {
 		return response, err
 	}
 
-	req.Header.Set("Content-Type", r.contentType)
+	request.Header.Set("Content-Type", r.contentType)
+	for key, values := range r.header {
+		for _, value := range values {
+			request.Header.Add(key, value)
+		}
+	}
 
-	rep, err := client.Do(req)
+	rep, err := client.Do(request)
 	if err != nil {
 		return response, err
 	}
@@ -89,6 +113,11 @@ func (r *Request) Uri(uri string) *Request {
 	return r
 }
 
+func (r *Request) Timeout(timeout time.Duration) *Request {
+	r.timeout = timeout
+	return r
+}
+
 func (r *Request) Body(payload interface{}) *Request {
 	r.payload = payload
 	return r
@@ -97,5 +126,15 @@ func (r *Request) Body(payload interface{}) *Request {
 func (r *Request) Mime(mime string) *Request {
 	r.contentType = GetFullMime(mime)
 	r.expectedType = GetFullMime(mime)
+	return r
+}
+
+func (r *Request) AddHeader(name string, value string) *Request {
+	r.header.Add(name, value)
+	return r
+}
+
+func (r *Request) SetHeader(name string, value string) *Request {
+	r.header.Set(name, value)
 	return r
 }

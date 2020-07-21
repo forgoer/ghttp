@@ -1,4 +1,4 @@
-package chttp
+package ghttp
 
 const JSON = "application/json"
 const XML = "application/xml"

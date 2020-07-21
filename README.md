@@ -1,4 +1,4 @@
-# Chttp
+# Ghttp
 The practical HTTP client that is fun to use.
 
 ## Installation
@@ -6,7 +6,7 @@ The practical HTTP client that is fun to use.
 The only requirement is the [Go Programming Language](https://golang.org/dl/)
 
 ```
-go get github.com/techoner/chttp
+github.com/forgoer/ghttp
 ```
 
 ## License

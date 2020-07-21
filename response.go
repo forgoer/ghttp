@@ -1,4 +1,4 @@
-package chttp
+package ghttp
 
 import (
 	"encoding/json"
@@ -17,6 +17,7 @@ func NewResponse(resp *http.Response, body []byte) *Response {
 		HttpResponse: resp,
 		RawBody:      body,
 		Code:         resp.StatusCode,
+		Body:         string(body),
 	}
 	return response
 }
@@ -26,5 +27,5 @@ func (r *Response) Unmarshal(v interface{}) error {
 }
 
 func (r *Response) ToString() string {
-	return string(r.RawBody)
+	return r.Body
 }
