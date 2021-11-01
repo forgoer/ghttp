@@ -58,7 +58,6 @@ func (r *Request) Send() (*Response, error) {
 		params = r.payload.(url.Values).Encode()
 	default:
 	}
-	var response *Response
 	var request *http.Request
 	var err error
 	if r.method == GET {
@@ -68,7 +67,7 @@ func (r *Request) Send() (*Response, error) {
 	}
 
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
 	request.Header.Set("Content-Type", r.contentType)
@@ -78,18 +77,20 @@ func (r *Request) Send() (*Response, error) {
 		}
 	}
 
+	start := time.Now()
+
 	rep, err := client.Do(request)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 	defer rep.Body.Close()
 
 	body, err := ioutil.ReadAll(rep.Body)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	return NewResponse(rep, body), nil
+	return NewResponse(rep, body, time.Now().Sub(start)), nil
 }
 
 func (r *Request) Method(method string) *Request {

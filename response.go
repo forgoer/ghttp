@@ -3,6 +3,7 @@ package ghttp
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 type Response struct {
@@ -10,14 +11,16 @@ type Response struct {
 	Body         string
 	RawBody      []byte
 	Code         int
+	Duration     time.Duration
 }
 
-func NewResponse(resp *http.Response, body []byte) *Response {
+func NewResponse(resp *http.Response, body []byte, duration time.Duration) *Response {
 	response := &Response{
 		HttpResponse: resp,
 		RawBody:      body,
 		Code:         resp.StatusCode,
 		Body:         string(body),
+		Duration:     duration,
 	}
 	return response
 }
