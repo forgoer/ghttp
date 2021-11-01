@@ -12,6 +12,7 @@ type Response struct {
 	RawBody      []byte
 	Code         int
 	Duration     time.Duration
+	RequestId    string
 }
 
 func NewResponse(resp *http.Response, body []byte, duration time.Duration) *Response {

@@ -2,6 +2,7 @@ package ghttp
 
 import (
 	"crypto/tls"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -17,11 +18,13 @@ type Request struct {
 	payload      interface{}
 	header       http.Header
 	timeout      time.Duration
+	RequestId    string
 }
 
 func NewRequest() *Request {
 	request := &Request{
-		header: make(http.Header),
+		header:    make(http.Header),
+		RequestId: uuid.New().String(),
 	}
 	return request
 }
@@ -90,7 +93,11 @@ func (r *Request) Send() (*Response, error) {
 		return nil, err
 	}
 
-	return NewResponse(rep, body, time.Now().Sub(start)), nil
+	response := NewResponse(rep, body, time.Now().Sub(start))
+
+	response.RequestId = r.RequestId
+
+	return response, nil
 }
 
 func (r *Request) Method(method string) *Request {
