@@ -55,6 +55,8 @@ func (r *Request) Send() (*Response, error) {
 	switch r.payload.(type) {
 	case string:
 		params = r.payload.(string)
+	case []byte:
+		params = string(r.payload.([]byte))
 	case Params:
 		params = r.payload.(Params).Encode()
 	case url.Values:
@@ -64,7 +66,11 @@ func (r *Request) Send() (*Response, error) {
 	var request *http.Request
 	var err error
 	if r.method == GET {
-		request, err = http.NewRequest(r.method, r.uri+"?"+params, nil)
+		url := r.uri
+		if params != "" {
+			url = r.uri + "?" + params
+		}
+		request, err = http.NewRequest(r.method, url, nil)
 	} else {
 		request, err = http.NewRequest(r.method, r.uri, strings.NewReader(params))
 	}
