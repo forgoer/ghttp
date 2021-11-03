@@ -1,7 +1,6 @@
 package ghttp
 
 import (
-	"crypto/tls"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +9,17 @@ import (
 	"time"
 )
 
+const DefaultTimeout = 8 * time.Second
+
+var DefaultClient = &http.Client{
+	Timeout: DefaultTimeout,
+	//Transport: &http.Transport{
+	//	TLSClientConfig: &tls.Config{
+	//		InsecureSkipVerify: true,
+	//	},
+	//},
+}
+
 type Request struct {
 	method       string
 	contentType  string
@@ -17,20 +27,27 @@ type Request struct {
 	uri          string
 	payload      interface{}
 	header       http.Header
-	timeout      time.Duration
 	RequestId    string
+
+	client *http.Client
 }
 
-func NewRequest() *Request {
+func NewRequest(options ...Option) *Request {
 	request := &Request{
 		header:    make(http.Header),
 		RequestId: uuid.New().String(),
+		client:    DefaultClient,
 	}
+
+	for _, o := range options {
+		o.Apply(request)
+	}
+
 	return request
 }
 
 func Init(method string) *Request {
-	return NewRequest().ContentType("form").Method(method).Timeout(8 * time.Second)
+	return NewRequest().ContentType("form").Method(method)
 }
 
 func Post(uri string, payload interface{}) *Request {
@@ -42,14 +59,6 @@ func Get(uri string, payload interface{}) *Request {
 }
 
 func (r *Request) Send() (*Response, error) {
-	client := &http.Client{
-		Timeout: r.timeout,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
 	params := ""
 
 	switch r.payload.(type) {
@@ -79,7 +88,10 @@ func (r *Request) Send() (*Response, error) {
 		return nil, err
 	}
 
-	request.Header.Set("Content-Type", r.contentType)
+	if r.contentType != "" {
+		request.Header.Set("Content-Type", r.contentType)
+	}
+
 	for key, values := range r.header {
 		for _, value := range values {
 			request.Header.Add(key, value)
@@ -88,6 +100,7 @@ func (r *Request) Send() (*Response, error) {
 
 	start := time.Now()
 
+	client := r.getClient()
 	rep, err := client.Do(request)
 	if err != nil {
 		return nil, err
@@ -127,11 +140,6 @@ func (r *Request) Uri(uri string) *Request {
 	return r
 }
 
-func (r *Request) Timeout(timeout time.Duration) *Request {
-	r.timeout = timeout
-	return r
-}
-
 func (r *Request) Body(payload interface{}) *Request {
 	r.payload = payload
 	return r
@@ -151,4 +159,43 @@ func (r *Request) AddHeader(name string, value string) *Request {
 func (r *Request) SetHeader(name string, value string) *Request {
 	r.header.Set(name, value)
 	return r
+}
+
+func (r *Request) getClient() *http.Client {
+	if r.client == nil {
+		r.client = DefaultClient
+	}
+	return r.client
+}
+
+// An Option configures a Request.
+type Option interface {
+	Apply(*Request)
+}
+
+// OptionFunc is a function that configures a Request.
+type OptionFunc func(*Request)
+
+// Apply calls f(Request)
+func (f OptionFunc) Apply(r *Request) {
+	f(r)
+}
+
+// WithClient can be used to set the client of a Request to the given value.
+func WithClient(client *http.Client) Option {
+	return OptionFunc(func(r *Request) {
+		r.client = client
+	})
+}
+
+func WithTransport(transport http.RoundTripper) Option {
+	return OptionFunc(func(r *Request) {
+		r.getClient().Transport = transport
+	})
+}
+
+func WithContentType(mime string) Option {
+	return OptionFunc(func(r *Request) {
+		r.ContentType(mime)
+	})
 }
