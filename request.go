@@ -46,16 +46,20 @@ func NewRequest(options ...Option) *Request {
 	return request
 }
 
-func Init(method string) *Request {
-	return NewRequest().ContentType("form").Method(method)
-}
-
 func Post(uri string, payload interface{}) *Request {
-	return Init(POST).Uri(uri).Body(payload)
+	return NewRequest().Post(uri, payload)
 }
 
 func Get(uri string, payload interface{}) *Request {
-	return Init(GET).Uri(uri).Body(payload)
+	return NewRequest().Get(uri, payload)
+}
+
+func (r *Request) Post(uri string, payload interface{}) *Request {
+	return r.ContentType(FORM).Method(POST).Uri(uri).Body(payload)
+}
+
+func (r *Request) Get(uri string, payload interface{}) *Request {
+	return r.ContentType(FORM).Method(GET).Uri(uri).Body(payload)
 }
 
 func (r *Request) Send() (*Response, error) {
