@@ -1,4 +1,6 @@
 package ghttp
 
-const GET = "GET"
-const POST = "POST"
+import "net/http"
+
+const GET = http.MethodGet
+const POST = http.MethodPost

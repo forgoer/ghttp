@@ -2,6 +2,7 @@ package ghttp
 
 import (
 	"github.com/google/uuid"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -63,31 +64,15 @@ func (r *Request) Get(uri string, payload interface{}) *Request {
 }
 
 func (r *Request) Send() (*Response, error) {
-	params := ""
+	params, body := r.parsePayload()
 
-	switch r.payload.(type) {
-	case string:
-		params = r.payload.(string)
-	case []byte:
-		params = string(r.payload.([]byte))
-	case Params:
-		params = r.payload.(Params).Encode()
-	case url.Values:
-		params = r.payload.(url.Values).Encode()
-	default:
-	}
 	var request *http.Request
 	var err error
-	if r.method == GET {
-		url := r.uri
-		if params != "" {
-			url = r.uri + "?" + params
-		}
-		request, err = http.NewRequest(r.method, url, nil)
-	} else {
-		request, err = http.NewRequest(r.method, r.uri, strings.NewReader(params))
+	uri := r.uri
+	if params != "" {
+		uri = r.uri + "?" + params
 	}
-
+	request, err = http.NewRequest(r.method, uri, body)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +96,12 @@ func (r *Request) Send() (*Response, error) {
 	}
 	defer rep.Body.Close()
 
-	body, err := ioutil.ReadAll(rep.Body)
+	respBody, err := ioutil.ReadAll(rep.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	response := NewResponse(rep, body, time.Now().Sub(start))
+	response := NewResponse(rep, respBody, time.Now().Sub(start))
 
 	response.RequestId = r.RequestId
 
@@ -170,6 +155,30 @@ func (r *Request) getClient() *http.Client {
 		r.client = DefaultClient
 	}
 	return r.client
+}
+
+func (r *Request) parsePayload() (string, io.Reader) {
+	var body io.Reader
+	var params string
+	switch r.payload.(type) {
+	case string:
+		params = r.payload.(string)
+	case []byte:
+		params = string(r.payload.([]byte))
+	case Params:
+		params = r.payload.(Params).Encode()
+	case url.Values:
+		params = r.payload.(url.Values).Encode()
+	case io.Reader:
+		body = r.payload.(io.Reader)
+	}
+	if r.method == http.MethodGet || r.method == http.MethodHead {
+		return params, nil
+	} else if body == nil {
+		body = strings.NewReader(params)
+	}
+
+	return "", body
 }
 
 // An Option configures a Request.
